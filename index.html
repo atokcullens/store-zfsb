@@ -61,15 +61,18 @@ dialog::backdrop{background:#0008}
 <label for="ps">Saiz</label><input id="ps" placeholder="cth: 700gm" required>
 <label for="pcur">Mata wang</label><select id="pcur"><option value="MYR">Ringgit Malaysia (RM)</option><option value="SGD">Dolar Singapura (S$)</option></select>
 <label for="pr">Harga</label><input id="pr" type="number" step="0.01" min="0" required>
-<label for="pc">Pcs dalam 1 karton</label><input id="pc" type="number" min="1" required>
-<label for="pm">Stok minimum (karton)</label><input id="pm" type="number" min="0" required>
-<div id="pst"><label for="pk">Stok sekarang (karton)</label><input id="pk" type="number" min="0" value="0"></div>
+<label for="pu">Jenis pembungkusan</label><select id="pu"><option value="karton">Karton</option><option value="tray">Tray</option><option value="plastik">Plastik</option></select>
+<label for="pc" id="lc">Paket dalam 1 karton</label><input id="pc" type="number" min="1" required>
+<label for="pi">Paket dalam 1 plastik (kosongkan jika tiada)</label><input id="pi" type="number" min="1">
+<label for="pm" id="lm">Stok minimum (karton)</label><input id="pm" type="number" min="0" required>
+<div id="pst"><label for="pk" id="lk">Stok sekarang (karton)</label><input id="pk" type="number" min="0" value="0"></div>
 <div class="acts"><button type="button" class="d" id="pdel">Padam</button><button type="button" id="pcx">Batal</button><button class="p">Simpan</button></div>
 </form></dialog>
 
 <dialog id="dm"><form id="fm">
 <h2 id="dmt" style="margin:0 0 4px;font-size:1.1rem"></h2><small id="dmp"></small>
-<label for="mq">Jumlah (karton)</label><input id="mq" type="number" min="1" step="1" required>
+<label for="mu">Unit</label><select id="mu"></select>
+<label for="mq" id="lq">Jumlah</label><input id="mq" type="number" min="1" step="1" required>
 <label for="mr">Sebab</label><select id="mr"></select>
 <label for="mn">Catatan (pilihan)</label><input id="mn">
 <p class="err" id="me"></p>
@@ -88,7 +91,16 @@ const SEED=[["Cili Giling Terengganu","2kg",11.9,6],["Cili Giling Terengganu","7
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let P=[],M=[],tab="stok",u1,u2,editId=null,mv=null;
-const st=p=>p.stock<=0?["Habis","bad"]:p.stock<=p.min?["Rendah","w"]:["Cukup","ok"];
+const U=p=>p?.unit||"karton";
+const setU=()=>{const u=$("#pu").value;$("#lc").textContent="Paket dalam 1 "+u;$("#lm").textContent="Stok minimum ("+u+")";$("#lk").textContent="Stok sekarang ("+u+")"};
+$("#pu").onchange=setU;
+const PC=p=>p.pcs??(p.stock||0)*p.carton;
+const st=p=>PC(p)<=0?["Habis","bad"]:PC(p)<=p.min*p.carton?["Rendah","w"]:["Cukup","ok"];
+const fs=p=>{let t=PC(p),o=Math.floor(t/p.carton),r=t%p.carton,s=[];
+ if(o)s.push(o+" "+(p.unit||"karton"));
+ if(p.inner){const i=Math.floor(r/p.inner);if(i)s.push(i+" plastik");r%=p.inner}
+ if(r)s.push(r+" paket");
+ return s.join(" ")||"0 "+(p.unit||"karton")};
 const pname=id=>{const p=P.find(x=>x.id===id);return p?p.name+" "+p.size:"(dipadam)"};
 
 onAuthStateChanged(auth,u=>{
@@ -111,8 +123,8 @@ function render(){
  $("#v").innerHTML=tab==="stok"?viewStok():viewAliran();
 }
 function viewStok(){
- let h=P.map(p=>{const [t,c]=st(p);return `<div class="card"><div class="row"><div><b>${esc(p.name)}</b><br><span class="m">${esc(p.size)} · ${p.cur==="SGD"?"S$":"RM"}${Number(p.price).toFixed(2)} · ${p.carton} pcs/karton</span></div><span class="tag ${c}">${t}</span></div>
- <div class="big">${p.stock} <small>karton</small></div><small>${p.stock*p.carton} pcs · minimum ${p.min} karton</small>
+ let h=P.map(p=>{const [t,c]=st(p);return `<div class="card"><div class="row"><div><b>${esc(p.name)}</b><br><span class="m">${esc(p.size)} · ${p.cur==="SGD"?"S$":"RM"}${Number(p.price).toFixed(2)} · ${p.carton} paket/${U(p)}${p.inner?" · "+p.inner+" paket/plastik":""}</span></div><span class="tag ${c}">${t}</span></div>
+ <div class="big">${fs(p)}</div><small>${PC(p)} paket · minimum ${p.min} ${U(p)}</small>
  <div class="acts"><button class="p" data-mv="in" data-id="${p.id}">Stok masuk</button><button data-mv="out" data-id="${p.id}">Stok keluar</button><button data-ed="${p.id}">Edit</button></div></div>`}).join("");
  if(!P.length)h=`<div class="card"><p>Belum ada produk.</p><button class="p" data-seed>Isi 3 produk Cili Giling Terengganu</button></div>`;
  return h+`<button data-new style="width:100%">+ Tambah produk</button>`;
@@ -120,7 +132,7 @@ function viewStok(){
 function viewAliran(){
  if(!M.length)return `<div class="card m">Belum ada aliran stok. Guna butang Stok masuk atau Stok keluar.</div>`;
  return M.map(m=>{const d=m.ts?.toDate?m.ts.toDate():new Date();
-  return `<div class="card"><div class="row"><b>${esc(pname(m.pid))}</b><span class="${m.type}">${m.type==="in"?"+":"−"}${m.qty} karton</span></div>
+  return `<div class="card"><div class="row"><b>${esc(pname(m.pid))}</b><span class="${m.type}">${m.type==="in"?"+":"−"}${m.qty} ${esc(m.unit||"karton")}${m.pcs?" ("+m.pcs+" paket)":""}</span></div>
   <small>${esc(m.reason)}${m.note?" · "+esc(m.note):""}</small><br><small>${d.toLocaleString("ms-MY",{dateStyle:"medium",timeStyle:"short"})} · ${esc(m.by)}</small></div>`}).join("");
 }
 $("#v").onclick=async e=>{
@@ -129,34 +141,35 @@ $("#v").onclick=async e=>{
  else if(b.dataset.ed)openProd(b.dataset.ed);
  else if("new" in b.dataset)openProd(null);
  else if("seed" in b.dataset){const w=writeBatch(db);
-  SEED.forEach(([name,size,price,carton])=>w.set(doc(collection(db,"products")),{name,size,price,carton,cur:"MYR",min:10,stock:0}));
+  SEED.forEach(([name,size,price,carton])=>w.set(doc(collection(db,"products")),{name,size,price,carton,cur:"MYR",unit:"karton",inner:0,min:10,stock:0,pcs:0}));
   await w.commit()}
 };
 function openProd(id){editId=id;const p=P.find(x=>x.id===id)||{};
  $("#dpt").textContent=id?"Edit produk":"Produk baru";
- $("#pn").value=p.name||"";$("#ps").value=p.size||"";$("#pr").value=p.price??"";$("#pcur").value=p.cur||"MYR";$("#pc").value=p.carton||"";$("#pm").value=p.min??10;$("#pk").value=0;
+ $("#pn").value=p.name||"";$("#ps").value=p.size||"";$("#pr").value=p.price??"";$("#pcur").value=p.cur||"MYR";$("#pc").value=p.carton||"";$("#pm").value=p.min??10;$("#pk").value=0;$("#pu").value=p.unit||"karton";$("#pi").value=p.inner||"";setU();
  $("#pst").hidden=!!id;$("#pdel").hidden=!id;$("#dp").showModal()}
 $("#pcx").onclick=()=>$("#dp").close();
 $("#fp").onsubmit=async e=>{e.preventDefault();
- const d={name:$("#pn").value.trim(),size:$("#ps").value.trim(),cur:$("#pcur").value,price:+$("#pr").value,carton:+$("#pc").value,min:+$("#pm").value};
+ const d={name:$("#pn").value.trim(),size:$("#ps").value.trim(),unit:$("#pu").value,cur:$("#pcur").value,price:+$("#pr").value,carton:+$("#pc").value,inner:+$("#pi").value||0,min:+$("#pm").value};
  const w=writeBatch(db);
- if(editId)w.update(doc(db,"products",editId),d);else w.set(doc(collection(db,"products")),{...d,stock:+$("#pk").value||0});
+ if(editId)w.update(doc(db,"products",editId),d);else w.set(doc(collection(db,"products")),{...d,stock:0,pcs:(+$("#pk").value||0)*d.carton});
  await w.commit();$("#dp").close()};
 $("#pdel").onclick=async()=>{if(!confirm("Padam produk ini? Rekod aliran lama kekal."))return;
  const w=writeBatch(db);w.delete(doc(db,"products",editId));await w.commit();$("#dp").close()};
 
 function openMove(id,type){mv={id,type};const p=P.find(x=>x.id===id);
  $("#dmt").textContent=type==="in"?"Stok masuk":"Stok keluar";
- $("#dmp").textContent=p.name+" "+p.size+" · baki "+p.stock+" karton";
+ $("#dmp").textContent=p.name+" "+p.size+" · baki "+fs(p);
+ $("#mu").innerHTML=[[U(p),p.carton]].concat(p.inner&&U(p)!=="plastik"?[["plastik",p.inner]]:[]).concat([["paket",1]]).map(([n,f])=>`<option value="${n}" data-f="${f}">${n}</option>`).join("");
  $("#mr").innerHTML=REASONS[type].map(r=>`<option>${r}</option>`).join("");
  $("#mq").value="";$("#mn").value="";$("#me").textContent="";$("#dm").showModal()}
 $("#mcx").onclick=()=>$("#dm").close();
 $("#fm").onsubmit=async e=>{e.preventDefault();
- const q=Math.floor(+$("#mq").value),p=P.find(x=>x.id===mv.id);
- if(mv.type==="out"&&q>p.stock){$("#me").textContent="Jumlah melebihi baki stok ("+p.stock+" karton).";return}
+ const q=Math.floor(+$("#mq").value),p=P.find(x=>x.id===mv.id),n=q*(+$("#mu").selectedOptions[0].dataset.f),cur=PC(p);
+ if(mv.type==="out"&&n>cur){$("#me").textContent="Jumlah melebihi baki stok ("+fs(p)+").";return}
  const w=writeBatch(db);
- w.set(doc(collection(db,"movements")),{pid:mv.id,type:mv.type,qty:q,reason:$("#mr").value,note:$("#mn").value.trim(),by:auth.currentUser.email,ts:serverTimestamp()});
- w.update(doc(db,"products",mv.id),{stock:increment(mv.type==="in"?q:-q)});
+ w.set(doc(collection(db,"movements")),{pid:mv.id,type:mv.type,qty:q,unit:$("#mu").value,pcs:n,reason:$("#mr").value,note:$("#mn").value.trim(),by:auth.currentUser.email,ts:serverTimestamp()});
+ w.update(doc(db,"products",mv.id),{pcs:p.pcs===undefined?cur+(mv.type==="in"?n:-n):increment(mv.type==="in"?n:-n)});
  try{await w.commit();$("#dm").close()}catch(err){$("#me").textContent="Gagal simpan: "+err.message}};
 </script>
 </body>
