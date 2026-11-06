@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stok Cili</title>
+<style>
+:root{--bg:#eef0f2;--c:#fff;--t:#1d2024;--m:#62686f;--b:#d9dde1;--p:#b42318;--pt:#fff;--ok:#146c3a;--okb:#dcf3e4;--w:#8a5300;--wb:#fdecc8;--bad:#a4170d;--badb:#fbdcd8}
+@media(prefers-color-scheme:dark){:root{--bg:#14161a;--c:#1e2126;--t:#eceef0;--m:#9aa1a9;--b:#30353b;--p:#e5584a;--pt:#14161a;--ok:#7bd99c;--okb:#16341f;--w:#f3bd62;--wb:#3a2b0b;--bad:#ff8f84;--badb:#3d1713}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+[hidden]{display:none!important}
+main{max-width:760px;margin:0 auto;padding:12px}
+h1{font-size:1.25rem;margin:0}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0 12px}
+small,.m{color:var(--m)}
+button,input,select{font:inherit;color:inherit}
+button{border:1px solid var(--b);background:var(--c);border-radius:8px;padding:8px 12px;cursor:pointer;min-height:40px}
+button.p{background:var(--p);color:var(--pt);border-color:var(--p);font-weight:600}
+button.d{color:var(--bad)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--p);outline-offset:1px}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--b);border-radius:8px;background:var(--c);min-height:42px}
+label{display:block;margin:10px 0 4px;font-weight:600;font-size:.9rem}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1}
+.tabs button[aria-selected=true]{background:var(--t);color:var(--bg);border-color:var(--t)}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.sum div{background:var(--c);border:1px solid var(--b);border-radius:10px;padding:10px}
+.sum b{display:block;font-size:1.5rem}
+.card{background:var(--c);border:1px solid var(--b);border-radius:10px;padding:12px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.tag{font-size:.8rem;font-weight:700;padding:2px 9px;border-radius:99px;white-space:nowrap}
+.ok{background:var(--okb);color:var(--ok)}.w{background:var(--wb);color:var(--w)}.bad{background:var(--badb);color:var(--bad)}
+.big{font-size:1.6rem;font-weight:700}
+.acts{display:flex;gap:6px;margin-top:10px}.acts button{flex:1}
+dialog{border:1px solid var(--b);border-radius:12px;background:var(--c);color:var(--t);width:min(92vw,420px);padding:16px}
+dialog::backdrop{background:#0008}
+.err{color:var(--bad);min-height:1.2em;margin:8px 0 0}
+#login{max-width:360px;margin:12vh auto;padding:0 16px}
+.in{color:var(--ok);font-weight:700}.out{color:var(--bad);font-weight:700}
+</style>
+</head>
+<body>
+<section id="login" hidden>
+<h1>Stok Cili</h1><p class="m">Log masuk untuk teruskan.</p>
+<form id="lf"><label for="em">Email</label><input id="em" type="email" autocomplete="username" required>
+<label for="pw">Kata laluan</label><input id="pw" type="password" autocomplete="current-password" required>
+<p class="err" id="le"></p><button class="p" style="width:100%">Log masuk</button></form>
+</section>
+
+<main id="app" hidden>
+<header><div><h1>Stok Cili</h1><small id="who"></small></div><button id="out">Log keluar</button></header>
+<div class="sum"><div><small>Produk</small><b id="s1">0</b></div><div><small>Stok rendah</small><b id="s2">0</b></div><div><small>Stok habis</small><b id="s3">0</b></div></div>
+<div class="tabs" role="tablist"><button role="tab" data-t="stok">Stok</button><button role="tab" data-t="aliran">Aliran</button></div>
+<div id="v"></div>
+</main>
+
+<dialog id="dp"><form id="fp">
+<h2 id="dpt" style="margin:0 0 4px;font-size:1.1rem">Produk</h2>
+<label for="pn">Nama produk</label><input id="pn" required>
+<label for="ps">Saiz</label><input id="ps" placeholder="cth: 700gm" required>
+<label for="pr">Harga (RM)</label><input id="pr" type="number" step="0.01" min="0" required>
+<label for="pc">Pcs dalam 1 karton</label><input id="pc" type="number" min="1" required>
+<label for="pm">Stok minimum (karton)</label><input id="pm" type="number" min="0" required>
+<div id="pst"><label for="pk">Stok sekarang (karton)</label><input id="pk" type="number" min="0" value="0"></div>
+<div class="acts"><button type="button" class="d" id="pdel">Padam</button><button type="button" id="pcx">Batal</button><button class="p">Simpan</button></div>
+</form></dialog>
+
+<dialog id="dm"><form id="fm">
+<h2 id="dmt" style="margin:0 0 4px;font-size:1.1rem"></h2><small id="dmp"></small>
+<label for="mq">Jumlah (karton)</label><input id="mq" type="number" min="1" step="1" required>
+<label for="mr">Sebab</label><select id="mr"></select>
+<label for="mn">Catatan (pilihan)</label><input id="mn">
+<p class="err" id="me"></p>
+<div class="acts"><button type="button" id="mcx">Batal</button><button class="p">Simpan</button></div>
+</form></dialog>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getFirestore,collection,doc,onSnapshot,query,orderBy,limit,writeBatch,increment,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const app=initializeApp({apiKey:"AIzaSyBDZGD5HlgdZbQ28_R0tqvPIpbXZbDDEEc",authDomain:"store-zfsb.firebaseapp.com",projectId:"store-zfsb",storageBucket:"store-zfsb.firebasestorage.app",messagingSenderId:"816571507128",appId:"1:816571507128:web:616afd61872e81b4c8af4d"});
+const auth=getAuth(app),db=getFirestore(app);
+const REASONS={in:["Siap produksi","Pulangan","Pelarasan stok","Lain-lain"],out:["Hantar hypermarket","Van sales","Singapore","Rosak / sample","Lain-lain"]};
+const SEED=[["Cili Giling Terengganu","2kg",11.9,6],["Cili Giling Terengganu","700gm",5.9,12],["Cili Giling Terengganu","350gm",3.3,24]];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let P=[],M=[],tab="stok",u1,u2,editId=null,mv=null;
+const st=p=>p.stock<=0?["Habis","bad"]:p.stock<=p.min?["Rendah","w"]:["Cukup","ok"];
+const pname=id=>{const p=P.find(x=>x.id===id);return p?p.name+" "+p.size:"(dipadam)"};
+
+onAuthStateChanged(auth,u=>{
+ $("#login").hidden=!!u;$("#app").hidden=!u;
+ if(u){$("#who").textContent=u.email;
+  u1=onSnapshot(query(collection(db,"products"),orderBy("name")),s=>{P=s.docs.map(d=>({id:d.id,...d.data()}));render()},e=>alert("Ralat data: "+e.message));
+  u2=onSnapshot(query(collection(db,"movements"),orderBy("ts","desc"),limit(100)),s=>{M=s.docs.map(d=>({id:d.id,...d.data()}));render()});
+ }else{u1&&u1();u2&&u2();P=[];M=[]}
+});
+$("#lf").onsubmit=async e=>{e.preventDefault();$("#le").textContent="";
+ try{await signInWithEmailAndPassword(auth,$("#em").value,$("#pw").value)}catch{$("#le").textContent="Email atau kata laluan salah."}};
+$("#out").onclick=()=>signOut(auth);
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
+
+function render(){
+ document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.t===tab));
+ $("#s1").textContent=P.length;
+ $("#s2").textContent=P.filter(p=>st(p)[1]==="w").length;
+ $("#s3").textContent=P.filter(p=>st(p)[1]==="bad").length;
+ $("#v").innerHTML=tab==="stok"?viewStok():viewAliran();
+}
+function viewStok(){
+ let h=P.map(p=>{const [t,c]=st(p);return `<div class="card"><div class="row"><div><b>${esc(p.name)}</b><br><span class="m">${esc(p.size)} · RM${Number(p.price).toFixed(2)} · ${p.carton} pcs/karton</span></div><span class="tag ${c}">${t}</span></div>
+ <div class="big">${p.stock} <small>karton</small></div><small>${p.stock*p.carton} pcs · minimum ${p.min} karton</small>
+ <div class="acts"><button class="p" data-mv="in" data-id="${p.id}">Stok masuk</button><button data-mv="out" data-id="${p.id}">Stok keluar</button><button data-ed="${p.id}">Edit</button></div></div>`}).join("");
+ if(!P.length)h=`<div class="card"><p>Belum ada produk.</p><button class="p" data-seed>Isi 3 produk Cili Giling Terengganu</button></div>`;
+ return h+`<button data-new style="width:100%">+ Tambah produk</button>`;
+}
+function viewAliran(){
+ if(!M.length)return `<div class="card m">Belum ada aliran stok. Guna butang Stok masuk atau Stok keluar.</div>`;
+ return M.map(m=>{const d=m.ts?.toDate?m.ts.toDate():new Date();
+  return `<div class="card"><div class="row"><b>${esc(pname(m.pid))}</b><span class="${m.type}">${m.type==="in"?"+":"−"}${m.qty} karton</span></div>
+  <small>${esc(m.reason)}${m.note?" · "+esc(m.note):""}</small><br><small>${d.toLocaleString("ms-MY",{dateStyle:"medium",timeStyle:"short"})} · ${esc(m.by)}</small></div>`}).join("");
+}
+$("#v").onclick=async e=>{
+ const b=e.target.closest("button");if(!b)return;
+ if(b.dataset.mv)openMove(b.dataset.id,b.dataset.mv);
+ else if(b.dataset.ed)openProd(b.dataset.ed);
+ else if("new" in b.dataset)openProd(null);
+ else if("seed" in b.dataset){const w=writeBatch(db);
+  SEED.forEach(([name,size,price,carton])=>w.set(doc(collection(db,"products")),{name,size,price,carton,min:10,stock:0}));
+  await w.commit()}
+};
+function openProd(id){editId=id;const p=P.find(x=>x.id===id)||{};
+ $("#dpt").textContent=id?"Edit produk":"Produk baru";
+ $("#pn").value=p.name||"";$("#ps").value=p.size||"";$("#pr").value=p.price??"";$("#pc").value=p.carton||"";$("#pm").value=p.min??10;$("#pk").value=0;
+ $("#pst").hidden=!!id;$("#pdel").hidden=!id;$("#dp").showModal()}
+$("#pcx").onclick=()=>$("#dp").close();
+$("#fp").onsubmit=async e=>{e.preventDefault();
+ const d={name:$("#pn").value.trim(),size:$("#ps").value.trim(),price:+$("#pr").value,carton:+$("#pc").value,min:+$("#pm").value};
+ const w=writeBatch(db);
+ if(editId)w.update(doc(db,"products",editId),d);else w.set(doc(collection(db,"products")),{...d,stock:+$("#pk").value||0});
+ await w.commit();$("#dp").close()};
+$("#pdel").onclick=async()=>{if(!confirm("Padam produk ini? Rekod aliran lama kekal."))return;
+ const w=writeBatch(db);w.delete(doc(db,"products",editId));await w.commit();$("#dp").close()};
+
+function openMove(id,type){mv={id,type};const p=P.find(x=>x.id===id);
+ $("#dmt").textContent=type==="in"?"Stok masuk":"Stok keluar";
+ $("#dmp").textContent=p.name+" "+p.size+" · baki "+p.stock+" karton";
+ $("#mr").innerHTML=REASONS[type].map(r=>`<option>${r}</option>`).join("");
+ $("#mq").value="";$("#mn").value="";$("#me").textContent="";$("#dm").showModal()}
+$("#mcx").onclick=()=>$("#dm").close();
+$("#fm").onsubmit=async e=>{e.preventDefault();
+ const q=Math.floor(+$("#mq").value),p=P.find(x=>x.id===mv.id);
+ if(mv.type==="out"&&q>p.stock){$("#me").textContent="Jumlah melebihi baki stok ("+p.stock+" karton).";return}
+ const w=writeBatch(db);
+ w.set(doc(collection(db,"movements")),{pid:mv.id,type:mv.type,qty:q,reason:$("#mr").value,note:$("#mn").value.trim(),by:auth.currentUser.email,ts:serverTimestamp()});
+ w.update(doc(db,"products",mv.id),{stock:increment(mv.type==="in"?q:-q)});
+ try{await w.commit();$("#dm").close()}catch(err){$("#me").textContent="Gagal simpan: "+err.message}};
+</script>
+</body>
+</html>
