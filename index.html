@@ -59,7 +59,8 @@ dialog::backdrop{background:#0008}
 <h2 id="dpt" style="margin:0 0 4px;font-size:1.1rem">Produk</h2>
 <label for="pn">Nama produk</label><input id="pn" required>
 <label for="ps">Saiz</label><input id="ps" placeholder="cth: 700gm" required>
-<label for="pr">Harga (RM)</label><input id="pr" type="number" step="0.01" min="0" required>
+<label for="pcur">Mata wang</label><select id="pcur"><option value="MYR">Ringgit Malaysia (RM)</option><option value="SGD">Dolar Singapura (S$)</option></select>
+<label for="pr">Harga</label><input id="pr" type="number" step="0.01" min="0" required>
 <label for="pc">Pcs dalam 1 karton</label><input id="pc" type="number" min="1" required>
 <label for="pm">Stok minimum (karton)</label><input id="pm" type="number" min="0" required>
 <div id="pst"><label for="pk">Stok sekarang (karton)</label><input id="pk" type="number" min="0" value="0"></div>
@@ -110,7 +111,7 @@ function render(){
  $("#v").innerHTML=tab==="stok"?viewStok():viewAliran();
 }
 function viewStok(){
- let h=P.map(p=>{const [t,c]=st(p);return `<div class="card"><div class="row"><div><b>${esc(p.name)}</b><br><span class="m">${esc(p.size)} · RM${Number(p.price).toFixed(2)} · ${p.carton} pcs/karton</span></div><span class="tag ${c}">${t}</span></div>
+ let h=P.map(p=>{const [t,c]=st(p);return `<div class="card"><div class="row"><div><b>${esc(p.name)}</b><br><span class="m">${esc(p.size)} · ${p.cur==="SGD"?"S$":"RM"}${Number(p.price).toFixed(2)} · ${p.carton} pcs/karton</span></div><span class="tag ${c}">${t}</span></div>
  <div class="big">${p.stock} <small>karton</small></div><small>${p.stock*p.carton} pcs · minimum ${p.min} karton</small>
  <div class="acts"><button class="p" data-mv="in" data-id="${p.id}">Stok masuk</button><button data-mv="out" data-id="${p.id}">Stok keluar</button><button data-ed="${p.id}">Edit</button></div></div>`}).join("");
  if(!P.length)h=`<div class="card"><p>Belum ada produk.</p><button class="p" data-seed>Isi 3 produk Cili Giling Terengganu</button></div>`;
@@ -128,16 +129,16 @@ $("#v").onclick=async e=>{
  else if(b.dataset.ed)openProd(b.dataset.ed);
  else if("new" in b.dataset)openProd(null);
  else if("seed" in b.dataset){const w=writeBatch(db);
-  SEED.forEach(([name,size,price,carton])=>w.set(doc(collection(db,"products")),{name,size,price,carton,min:10,stock:0}));
+  SEED.forEach(([name,size,price,carton])=>w.set(doc(collection(db,"products")),{name,size,price,carton,cur:"MYR",min:10,stock:0}));
   await w.commit()}
 };
 function openProd(id){editId=id;const p=P.find(x=>x.id===id)||{};
  $("#dpt").textContent=id?"Edit produk":"Produk baru";
- $("#pn").value=p.name||"";$("#ps").value=p.size||"";$("#pr").value=p.price??"";$("#pc").value=p.carton||"";$("#pm").value=p.min??10;$("#pk").value=0;
+ $("#pn").value=p.name||"";$("#ps").value=p.size||"";$("#pr").value=p.price??"";$("#pcur").value=p.cur||"MYR";$("#pc").value=p.carton||"";$("#pm").value=p.min??10;$("#pk").value=0;
  $("#pst").hidden=!!id;$("#pdel").hidden=!id;$("#dp").showModal()}
 $("#pcx").onclick=()=>$("#dp").close();
 $("#fp").onsubmit=async e=>{e.preventDefault();
- const d={name:$("#pn").value.trim(),size:$("#ps").value.trim(),price:+$("#pr").value,carton:+$("#pc").value,min:+$("#pm").value};
+ const d={name:$("#pn").value.trim(),size:$("#ps").value.trim(),cur:$("#pcur").value,price:+$("#pr").value,carton:+$("#pc").value,min:+$("#pm").value};
  const w=writeBatch(db);
  if(editId)w.update(doc(db,"products",editId),d);else w.set(doc(collection(db,"products")),{...d,stock:+$("#pk").value||0});
  await w.commit();$("#dp").close()};
